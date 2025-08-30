@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECHOVERSE</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #8a8896;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #e5e1e4;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(166, 69, 69, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color:#000042;
+            margin-bottom: 25px;
+            font-style: oblique;
+            font-weight: bold;
+        }
+        textarea {
+            width: calc(100% - 20px);
+            min-height: 150px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            width: calc(50% - 10px); /* Two columns */
+            min-width: 200px; /* For smaller screens */
+        }
+        .control-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+            text-align: left;
+            width: 100%;
+        }
+        .control-group input[type="range"],
+        .control-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            background: #007bff;
+        }
+        .control-group input[type="range"]::-moz-range-thumb {
+            background: #007bff;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        button#playBtn {
+            background-color: #28a745;
+            color: white;
+        }
+        button#playBtn:hover {
+            background-color: #218838;
+        }
+        button#pauseBtn {
+            background-color: #cd0d9d;
+            color: #333;
+        }
+        button#pauseBtn:hover {
+            background-color: #be0d92;
+        }
+        button#stopBtn {
+            background-color: #0df6df;
+            color: white;
+        }
+        button#stopBtn:hover {
+            background-color: #11a9e0;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .control-group {
+                width: 100%; /* Stack controls vertically on small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ECHOVERSE</h1>
+
+        <textarea id="textInput" placeholder="Enter text here to convert to speech..." autofocus>Hello, We "Team RNA" presenting you the best Echo-verse project for better understanding of how the text is readable and converted into audio speech...Experience the exclusive text-to-audio content </textarea>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="voiceSelect">Voice:</label>
+                <select id="voiceSelect"></select>
+            </div>
+
+            <div class="control-group">
+                <label for="pitchControl">Pitch (0-2): <span id="pitchValue">1</span></label>
+                <input type="range" id="pitchControl" min="0" max="2" value="1" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <label for="rateControl">Rate (0.1-10): <span id="rateValue">1</span></label>
+                <input type="range" id="rateControl" min="0.1" max="10" value="1" step="0.1">
+            </div>
+
+            <!-- This is where a more advanced 'tone' control would go, but is simulated by pitch/rate -->
+            <div class="control-group">
+                <label for="tonePreset">Tone Preset (Simulated):</label>
+                <select id="tonePreset">
+                    <option value="normal">Normal</option>
+                    <option value="happy">Happy (Higher Pitch/Rate)</option>
+                    <option value="angry">Angry (Lower Pitch/Slightly Faster Rate)</option>
+                    <option value="excited">Excited (Higher Pitch/Faster Rate)</option>
+                    <option value="sad">Sad (Lower Pitch/Slower Rate)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button id="playBtn">Play</button>
+            <button id="pauseBtn">Pause</button>
+            <button id="stopBtn">Stop</button>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const pitchControl = document.getElementById('pitchControl');
+        const pitchValueSpan = document.getElementById('pitchValue');
+        const rateControl = document.getElementById('rateControl');
+        const rateValueSpan = document.getElementById('rateValue');
+        const tonePreset = document.getElementById('tonePreset');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        let synth = window.speechSynthesis;
+        let utterance = null;
+        let voices = [];
+
+        // Function to populate voices
+        function populateVoiceList() {
+            voices = synth.getVoices().sort((a, b) => a.name.localeCompare(b.name));
+            voiceSelect.innerHTML = '';
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-lang', voice.lang);
+                option.setAttribute('data-name', voice.name);
+                voiceSelect.appendChild(option);
+            });
+            // Try to set a default English voice if available
+            const defaultVoice = voices.find(voice => voice.lang.startsWith('en-') && voice.default);
+            if (defaultVoice) {
+                voiceSelect.value = `${defaultVoice.name} (${defaultVoice.lang})`;
+            } else if (voices.length > 0) {
+                voiceSelect.value = `${voices[0].name} (${voices[0].lang})`;
+            }
+        }
+
+        // Event listener for voiceschanged
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        } else {
+            // Fallback for browsers that don't fire onvoiceschanged immediately
+            populateVoiceList();
+        }
+
+
+        // Update pitch/rate display
+        pitchControl.addEventListener('input', () => {
+            pitchValueSpan.textContent = pitchControl.value;
+        });
+        rateControl.addEventListener('input', () => {
+            rateValueSpan.textContent = rateControl.value;
+        });
+
+        // Function to speak the text
+        function speak() {
+            if (synth.speaking) {
+                synth.cancel(); // Stop any ongoing speech before starting new one
+            }
+            if (textInput.value.trim() === '') {
+                return;
+            }
+
+            utterance = new SpeechSynthesisUtterance(textInput.value);
+
+            // Set voice
+            const selectedVoiceName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            utterance.voice = voices.find(voice => voice.name === selectedVoiceName) || voices[0];
+
+            // Set pitch and rate
+            utterance.pitch = parseFloat(pitchControl.value);
+            utterance.rate = parseFloat(rateControl.value);
+
+            utterance.onerror = (event) => {
+                console.error('Speech synthesis error:', event.error);
+            };
+
+            synth.speak(utterance);
+        }
+
+        // Play button
+        playBtn.addEventListener('click', () => {
+            if (synth.paused) {
+                synth.resume();
+            } else {
+                speak();
+            }
+        });
+
+        // Pause button
+        pauseBtn.addEventListener('click', () => {
+            if (synth.speaking) {
+                synth.pause();
+            }
+        });
+
+        // Stop button
+        stopBtn.addEventListener('click', () => {
+            if (synth.speaking || synth.paused) {
+                synth.cancel();
+            }
+        });
+
+        // Tone Preset functionality
+        tonePreset.addEventListener('change', () => {
+            const preset = tonePreset.value;
+            switch (preset) {
+                case 'normal':
+                    pitchControl.value = 1;
+                    rateControl.value = 1;
+                    break;
+                case 'happy':
+                    pitchControl.value = 1.3; // Slightly higher pitch
+                    rateControl.value = 1.3; // Faster rate
+                    break;
+                case 'angry':
+                    pitchControl.value = 0.8; // Lower pitch
+                    rateControl.value = 1.1; // Slightly faster rate, sometimes sharper delivery
+                    break;
+                case 'excited':
+                    pitchControl.value = 1.5; // Much higher pitch
+                    rateControl.value = 1.5; // Much faster rate
+                    break;
+                case 'sad':
+                    pitchControl.value = 0.7; // Lower pitch
+                    rateControl.value = 0.8; // Slower rate
+                    break;
+                default:
+                    // Fallback to normal
+                    pitchControl.value = 1;
+                    rateControl.value = 1;
+            }
+            // Update slider displays
+            pitchValueSpan.textContent = pitchControl.value;
+            rateValueSpan.textContent = rateControl.value;
+
+            // Stop current speech and speak with new settings if something was playing
+            if (synth.speaking || synth.paused) {
+                synth.cancel();
+                speak();
+            }
+        });
+
+        // Initialize voice list on page load
+        populateVoiceList();
+
+        // Some browsers might not have voices immediately available.
+        // It's good practice to try populating again after a short delay.
+        setTimeout(populateVoiceList, 1000);
+
+    </script>
+</body>
+</html>
